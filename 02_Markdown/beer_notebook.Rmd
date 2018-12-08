@@ -56,9 +56,13 @@ Confirmed, only beer_abv has missing values.
 #### Question 1: Which brewery produces the strongest beers by ABV%?
 
 There's a 3-step process to answer this question:
+
 * get distinct list of beers
+
 * group by brewery
+
 * find the average ABV% for all the beers by brewery
+
 ```{r}
 beer %>%
     distinct(brewery_name, brewery_id, beer_name, beer_beerid, beer_abv) %>% 
