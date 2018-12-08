@@ -1,0 +1,167 @@
+---
+title: "Beer Ratings Analysis"
+output: html_notebook
+author: "Matt Dube"
+date: "12/7/2018"
+editor_options: 
+  chunk_output_type: inline
+---
+
+load libraries
+```{r message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(here)
+library(corrplot)
+library(Hmisc)
+
+```
+load data
+```{r}
+beer <- read_csv(here("00_Data/raw/","beer_reviews.csv"))
+
+```
+
+Look at structure of data
+```{r}
+dim(beer)
+```
+
+```{r}
+glimpse(beer)
+```
+
+```{r}
+summary(beer)
+```
+It looks like only beer_abv has missing values.  I'll check again with less output to make sure.
+```{r}
+sapply(beer, function(x) sum(is.na(x)))
+```
+Confirmed, only beer_abv has missing values.  
+```{r}
+67785 / nrow(beer) * 100
+```
+4.27% of reviews have missing data.  
+
+#### Question 1: Which brewery produces the strongest beers by ABV%?
+
+There's a 3-step process to answer this question:
+* get distinct list of beers
+* group by brewery
+* find the average ABV% for all the beers by brewery
+```{r}
+beer %>%
+    distinct(brewery_name, brewery_id, beer_name, beer_beerid, beer_abv) %>% 
+    group_by(brewery_name) %>%
+    summarise(mean_abv = mean(beer_abv)) %>% 
+    arrange(desc(mean_abv)) %>%
+    head(5)
+```
+The brewery that produces the strongest beers by ABV% is **SchorschbrÃ¤u** with a mean abv of **24.69**.
+
+
+#### Question 2: If you had to pick 3 beers to recommend using only this data, which would you pick?
+
+First set is to add a review_count column, which is the total number of times a unique beer was reviewed.
+```{r}
+beer_processed <- 
+    beer %>% 
+    group_by(beer_name, beer_beerid) %>%
+    mutate(review_count = n())
+```
+
+Next, I'm choosing an arbitrary number of minimum reviews to base my selection on.  In this case, I think that a minimum of 20 reviews for a beer is needed before it can be considered for the overall recommendation.
+
+The steps to choose the 3 beers are:
+
+1. Filter on beers with at least 20 reviews.
+
+2. Group_By Beer Name, Beer ID, and Brewery.
+
+3. Find the mean overall rating (review_overall) for those beers.
+
+4. Arrange the results in descending order by mean_over_all rating.
+
+```{r recommendation}
+beer_processed %>%
+  filter(review_count >= 20) %>%
+  group_by(beer_name, beer_beerid, brewery_name) %>%
+  summarise(mean_overall_rating = mean(review_overall, na.rm=TRUE), n()) %>%
+  select(mean_overall_rating, beer_name, everything()) %>%
+  arrange(desc(mean_overall_rating, n)) %>%
+  head(3)
+```
+
+
+The 3 beers I would recommend are 
+
+* **Rare D.O.S.** from Peg's Cantina & Brewpub / Cycle Brewing
+
+* **Dirty Horse** from De Struise Brouwers
+
+* **Southampton Berliner Weisse** from Southampton Publick House
+
+**Note** - this answer will change based on the filter of number of beer reviews.  
+
+
+#### Question 3: Which of the factors (aroma, taste, appearance, palate) are most important in determining the overall quality of a beer?
+
+My initial thought to answer question 3 was to build a model, then look at variable importance.  But while that would give an answer, a much easier way to answer this is to look at the correlation of the 4 features with the overall rating, which I interpret to be the overall quality of the beer.  
+
+First step, check the distribution of aroma, taste, appearance, and palate.
+
+A fuction to plot a list of variables:
+```{r}
+plotHistograms <- function(varList, inputData, numCols=2) {
+    gather(data=inputData, varList, key = "var", value = "value") %>%
+        ggplot(aes(x=value)) +
+        geom_histogram(fill="#2b8cbe") +
+        facet_wrap(~ var, scales = "free", ncol = numCols) +
+        theme(legend.position = "none")
+}
+
+```
+Call the function with our list:
+```{r}
+num_list <- c("review_overall", "review_aroma", "review_taste", "review_appearance", "review_palate")
+plotHistograms(num_list, beer)
+```
+All five variables distributions are basically the same, and close to normal.  We can use Pearson's correlation to examine the strength of their relationships.  We can further check the relationship using Spearman's Rank Correlation, which doesn't make assumptions about the distribution.
+
+```{r}
+beer_corr_full_pe <- 
+    beer %>%
+    dplyr::select(review_overall, review_aroma, review_taste, review_appearance, review_palate) %>%
+    cor(method = "pearson")
+
+beer_corr_full_sp <- 
+    beer %>%
+    dplyr::select(review_overall, review_aroma, review_taste, review_appearance, review_palate) %>%
+    cor(method = "spearman")
+```
+
+```{r}
+corrplot(beer_corr_full_pe, method="number", type = "upper",tl.cex = 0.75,
+         mar=c(0,0,2,0), title = "Pearson correlation") 
+```
+
+```{r}
+corrplot(beer_corr_full_sp, method="number", type = "upper",tl.cex = 0.75,
+         mar=c(0,0,2,0), title = "Spearman rank-order correlation") 
+```
+
+Both Pearson and Spearman identify **review_taste** as the most important variable in determining the **review_overall** score.  
+
+
+#### Question 4: Generate 10,000 random numbers (i.e. sample) from a binomial distribution with p = 0.5 and N=20. Do not use any libraries or packages except basic math library functions and a random number generator (such as runif in R or random.random in python).
+
+Plot the histogram of the data.
+
+The *rbinom* base R function can be used with the base R *hist* to answer this:
+
+```{r}
+hist(rbinom(10000, 20, 0.5))
+```
+

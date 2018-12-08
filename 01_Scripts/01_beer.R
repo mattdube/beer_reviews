@@ -10,6 +10,8 @@ library(tictoc)
 beer <- read.csv("00_Data/raw/beer_reviews.csv", stringsAsFactors = FALSE)
 
 # quick data check, front & back
+glimpse(beer)
+summary(beer)
 beer %>% 
     head(10) %>%
     View()
@@ -98,6 +100,26 @@ beer_processed %>%
     select(beer_beerid, review_overall, everything()) %>%
     filter(beer_beerid == 48215) %>% View()
 
+beer %>%
+    distinct(brewery_name, brewery_id, beer_name, beer_beerid, beer_abv) %>% 
+    group_by(brewery_name) %>%
+    summarise(mean_abv = mean(beer_abv)) %>% 
+    arrange(desc(mean_abv)) %>%
+    head(5)
 
+beer %>%
+    group_by(beer_beerid, beer_name) %>%
+    summarise(n = n()) %>% View()
 
+beer %>% 
+    group_by(beer_name, beer_beerid) %>%
+    mutate(review_count = n()) %>% 
+    distinct(beer_beerid, beer_name, review_count) %>%
+    arrange(desc(review_count)) %>% head(20)
 
+beer_processed <- 
+    beer %>% 
+    group_by(beer_name, beer_beerid) %>%
+    mutate(review_count = n())
+
+beer_processed
