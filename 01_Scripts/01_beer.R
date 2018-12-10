@@ -1,13 +1,10 @@
 # load libraries
 library(dplyr)
 library(ggplot2)
-library(lubridate)
-library(anytime)
 library(readr)
-library(tictoc)
-
+# sanbox script for testing code before it's added to the markdown document
 # load dataset
-beer <- read.csv("00_Data/raw/beer_reviews.csv", stringsAsFactors = FALSE)
+beer <- read_csv("00_Data/raw/beer_reviews.csv")
 
 # quick data check, front & back
 glimpse(beer)
@@ -23,11 +20,6 @@ beer %>%
 # data structure & summary
 str(beer)
 summary(beer)
-
-# quick notes:
-# to char: brewery_id, beer_beer_id
-# possibly to factor: review_overall, review_aroma, review_appearance
-
 
 # count NAs and missing values
 beer %>%
@@ -96,10 +88,6 @@ beer_processed %>%
     View()
 
 
-beer_processed %>%
-    select(beer_beerid, review_overall, everything()) %>%
-    filter(beer_beerid == 48215) %>% View()
-
 beer %>%
     distinct(brewery_name, brewery_id, beer_name, beer_beerid, beer_abv) %>% 
     group_by(brewery_name) %>%
@@ -107,19 +95,15 @@ beer %>%
     arrange(desc(mean_abv)) %>%
     head(5)
 
-beer %>%
-    group_by(beer_beerid, beer_name) %>%
-    summarise(n = n()) %>% View()
-
-beer %>% 
-    group_by(beer_name, beer_beerid) %>%
-    mutate(review_count = n()) %>% 
-    distinct(beer_beerid, beer_name, review_count) %>%
-    arrange(desc(review_count)) %>% head(20)
-
 beer_processed <- 
     beer %>% 
     group_by(beer_name, beer_beerid) %>%
     mutate(review_count = n())
 
-beer_processed
+beer_processed %>%
+    filter(review_count >= 100) %>%
+    group_by(beer_name, beer_beerid, brewery_name) %>%
+    summarise(mean_overall_rating = mean(review_overall, na.rm=TRUE), n()) %>%
+    select(mean_overall_rating, beer_name, everything()) %>%
+    arrange(desc(mean_overall_rating, n)) %>%
+    head(8)
