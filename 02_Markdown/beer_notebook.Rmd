@@ -10,6 +10,7 @@ editor_options:
 load libraries
 ```{r message=FALSE}
 library(dplyr)
+library(readr)
 library(ggplot2)
 library(tidyr)
 library(here)
@@ -18,7 +19,7 @@ library(Hmisc)
 
 ```
 load data
-```{r}
+```{r, message=FALSE}
 beer <- read_csv(here("00_Data/raw/","beer_reviews.csv"))
 
 ```
@@ -35,19 +36,23 @@ Look at structure of data.  The below are a few of the things I look at everytim
 ```{r}
 dim(beer)
 ```
-
+ The beer data set has 1,586,614 observations., and 13 features.
 ```{r}
 glimpse(beer)
 ```
 
+The glimpse function shows the datatype of all features, and also several examples of each one (number of examples depends on what fits on the screen).
+
 ```{r}
 summary(beer)
 ```
-It looks like only beer_abv has missing values.  I'll check again with less output to make sure.
+The summary function provides descriptive statistics (IQR, min, mean, max) for numeric features.  It looks like only beer_abv has missing values.  I'll check again with less output to make sure.
+
 ```{r}
 sapply(beer, function(x) sum(is.na(x)))
 ```
-Confirmed, only beer_abv has missing values.  
+sapply applies the function 'sum(is.na(x)) across all columns in the dataset.  Confirmed, only beer_abv has missing values.  
+
 ```{r}
 67785 / nrow(beer) * 100
 ```
@@ -57,11 +62,13 @@ Confirmed, only beer_abv has missing values.
 
 There's a 3-step process to answer this question:
 
-* get distinct list of beers
+* get distinct list of beers using the distinct function. 
 
 * group by brewery
 
-* find the average ABV% for all the beers by brewery
+* find the average ABV% for all the beers by brewery. Group_by works with summarise to first put bin our data into groups, in this case by the variable 'brewery_name', then summarise applies an aggregate function to the data **by group**.  For this question the function 'mean' is applied to beer_abv, and it's aggregated by brewery_name.
+
+'arrange' allows the results to be sorted in **descending** order.
 
 ```{r}
 beer %>%
@@ -71,6 +78,7 @@ beer %>%
     arrange(desc(mean_abv)) %>%
     head(5)
 ```
+
 The brewery that produces the strongest beers by ABV% is **SchorschbrÃ¤u** with a mean abv of **24.69**.
 
 
@@ -178,3 +186,66 @@ set.seed(5432)
 hist(rbinom(10000, 20, 0.5))
 ```
 
+Here's 10,000 random numbers from a binomial distribution using only runif. 
+
+The process used:
+
+* create random number using runif, with 20 samples, between 0 and 1.
+
+* using the random number above, create  bernoulli distributed variables using 0.5 probability.
+This will result in a logical TRUE/FALSE, so 'as.numeric' needs to be used.
+
+* the bernoulli distribution is summed.
+
+* this is 1 sample - we need 10,000.
+
+** create an empty vector to store results
+
+** use a for loop to run the above steps 10,000 times to come up with the full sample.
+
+Here is an example of creating the random 20 samples, creating a bernoulli distribution, and summing that distribution.
+
+I reviewed binomial and bernoulli distributions here:
+
+https://math.stackexchange.com/questions/838107/what-is-the-difference-and-relationship-between-the-binomial-and-bernoulli-distr
+
+```{r}
+set.seed(5432)
+
+# random numbers
+random_num <- runif(20, 0, 1)
+# bernoulli distribution with 0.5 probability
+bern_dist <- as.numeric(random_num < 0.5)
+
+```
+```{r}
+print(random_num)
+print(bern_dist)
+```
+
+Now we can do the same thing, but for 10,000 numbers.
+The random_binom function defined below takes 3 parameters:
+
+* x - the number of random numbers.
+
+* n - the number of samples.
+
+* p - the probability.
+
+```{r}
+set.seed(5432)
+
+random_binom <- function(x, n, p){
+  binom_dist <- c()
+  for(i in 1:x){
+    samp <- runif(n, 0, 1) # random sample fo 20 numbers between 0 and 1
+    bern <- as.numeric(samp < p) # create bernoulli distribution with p = 0.5
+    binom_dist[i] <- sum(bern) # sum each bernoulli distribution and add to the vector
+  }
+  return(binom_dist)
+}
+```
+Use the hist() function to plot the binomial distribution of 10,000 numbers from a binomial distribution with p = 0.5 and N = 20.
+```{r}
+hist(random_binom(10000, 20, 0.5))
+```
